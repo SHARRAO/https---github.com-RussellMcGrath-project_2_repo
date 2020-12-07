@@ -12,9 +12,9 @@ L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_toke
   accessToken: API_KEY
 }).addTo(myMap);
 
-var url = "https://data.sfgov.org/resource/cuks-n6tp.json?$limit=10000";
+var link = "static/csv/data.csv";
 
-d3.json(url, function(response) {
+d3.csv(link, function(response) {
 
   console.log(response);
 
