@@ -16,26 +16,25 @@ L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_toke
 
 // Load in  data from csv
 var link = "static/csv/data.csv";
-
+var statesJs = "static/js/us-states.json";
 var linkdata;
 
 // Grab data with d3
 d3.csv(link, function(data) {
-  console.log(data);
-
-  d3.json("us-states.js", function(data) {
     var dataArray = [];
     for (var d = 0; d < data.length; d++) {
       dataArray.push(parseFloat(data[d].acres))
     }
     var minVal = d3.min(dataArray)
     var maxVal = d3.max(dataArray)
-    var ramp = d3.scaleLinear().domain([minVal,maxVal]).range([lowColor,highColor])
+    //var ramp = d3.scaleLinear().domain([minVal,maxVal]).range([lowColor,highColor])
+    
     console.log("dataArray:");
     console.log(dataArray);
     // Load GeoJSON data and merge with states data
-    d3.json("us-states.js", function(json) {
-  
+    d3.json(statesJs, function(json) {
+    console.log("Json:");
+    console.log(json)
       // Loop through each state data value in the .csv file
       for (var i = 0; i < data.length; i++) {
   
@@ -115,5 +114,6 @@ d3.csv(link, function(data) {
 
   // Adding legend to the map
   legend.addTo(myMap);
-*/
+
 });
+*/
