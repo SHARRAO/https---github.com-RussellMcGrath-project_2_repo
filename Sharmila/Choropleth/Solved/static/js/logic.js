@@ -17,83 +17,151 @@ L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_toke
 // Load in  data from csv
 var link = "static/csv/data.csv";
 var statesJs = "static/js/us-states.json";
-var linkdata;
+var lowColor = '#FFEDA0';
+var highColor = '#800026';
+var dataArray = [];
+var geojson;
 
 // Grab data with d3
 d3.csv(link, function(data) {
-    var dataArray = [];
-    for (var d = 0; d < data.length; d++) {
-      dataArray.push(parseFloat(data[d].acres))
-    }
-    var minVal = d3.min(dataArray)
-    var maxVal = d3.max(dataArray)
-    //var ramp = d3.scaleLinear().domain([minVal,maxVal]).range([lowColor,highColor])
     
-    console.log("dataArray:");
-    console.log(dataArray);
     // Load GeoJSON data and merge with states data
     d3.json(statesJs, function(json) {
-    console.log("Json:");
-    console.log(json)
+    
+      console.log(json);
+      // reset data
+      for (var j = 0; j < json.features.length; j++) {
+        json.features[j].properties.density = 0;
+      }
+
       // Loop through each state data value in the .csv file
       for (var i = 0; i < data.length; i++) {
-  
         // Grab State Name
         var dataState = data[i].state;
-  
+      
         // Grab data value 
-        var dataValue = data[i].value;
+        var dataValue = 0;
+        if (data[i].acres == "n/a") {
+           dataValue = 1;
+        } else {
+          dataValue = parseFloat(data[i].acres)
+        }
+        //console.log(dataState + "->" + dataValue);
   
         // Find the corresponding state inside the GeoJSON
         for (var j = 0; j < json.features.length; j++) {
           var jsonState = json.features[j].properties.name;
-  
+          
           if (dataState == jsonState) {
-  
             // Copy the data value into the JSON
-            json.features[j].properties.value = dataValue;
-  
+            json.features[j].properties.density = json.features[j].properties.density + dataValue;
+            //console.log("=>>"+dataState + "->" + json.features[j].properties.density);
             // Stop looking through the JSON
             break;
           }
         }
+        //console.log(json)
       }
-    });
-  // Create a new choropleth layer
-  //linkdata = L.choropleth(response, {
 
-    // Define what  property in the features to use
-    //valueProperty: "acres",
+ 
+      for (var j = 0; j < json.features.length; j++) {
+          dataArray.push(json.features[j].properties.density);
+      }
+      geojson = L.geoJson(json, {style: style}).addTo(myMap);
+      
+      
+   });
 
-    // Set color scale
-    //scale: ["#ffffb2", "#b10026"],
 
-    // Number of breaks in step range
-    //steps: 10,
+});
 
-    // q for quartile, e for equidistant, k for k-means
-    //mode: "q",
-    //style: {
-      // Border color
-      //color: "#fff",
-      //weight: 1,
-      //fillOpacity: 0.8
-    //},
 
-    // Binding a pop-up to each layer
-    //onEachFeature: function(feature, layer) {
-    //  layer.bindPopup("Zip Code: " + feature.properties.ZIP + "<br>Acres burned:<br>" +
-    //    "$" + feature.properties.MHI2016);
-   // }
-  }); //.addTo(myMap);
+function getColor(d) {
 
-  // Set up the legend
-  /*var legend = L.control({ position: "bottomright" });
+  var minVal = d3.min(dataArray);
+  var maxVal = d3.max(dataArray);
+  var ramp = d3.scaleLinear().domain([minVal,maxVal]).range([lowColor,highColor]);
+    
+  return ramp(d);
+};
+
+function style(feature) {
+  return {
+      fillColor: getColor(feature.properties.density),
+      weight: 2,
+      opacity: 1,
+      color: 'white',
+      dashArray: '3',
+      fillOpacity: 0.7
+  };
+};
+
+function highlightFeature(e) {
+  var layer = e.target;
+  
+  layer.setStyle({
+      weight: 5,
+      color: '#666',
+      dashArray: '',
+      fillOpacity: 0.7
+  });
+
+  if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+      layer.bringToFront();
+  };
+};
+
+function resetHighlight(e) {
+  geojson.resetStyle(e.target);
+};
+
+function zoomToFeature(e) {
+  map.fitBounds(e.target.getBounds());
+};
+
+function onEachFeature(feature, layer) {
+  layer.on({
+      mouseover: highlightFeature,
+      mouseout: resetHighlight,
+      click: zoomToFeature
+  });
+}
+
+geojson = L.geoJson(statesData, {
+  style: style,
+  onEachFeature: onEachFeature
+}).addTo(myMap);
+
+var info = L.control();
+
+info.onAdd = function (myMap) {
+    this._div = L.DomUtil.create('div', 'info'); // create a div with a class "info"
+    this.update();
+    return this._div;
+};
+
+// method that we will use to update the control based on feature properties passed
+info.update = function (props) {
+    this._div.innerHTML = '<h4>US </h4>' +  (props ?
+        '<b>' + props.name + '</b><br />' + props.density + ' people / mi<sup>2</sup>'
+        : 'Hover over a state');
+};
+
+info.addTo(myMap);
+
+// Binding a pop-up to each layer
+//onEachFeature: function(feature, layer) {
+//  layer.bindPopup("State: " + feature.properties.name + "<br>Acres burned:" +
+//                  feature.properties.density);
+// };
+/*
+// Set up the legend
+  var legend = L.control({ position: "bottomright" });
   legend.onAdd = function() {
-    var div = L.DomUtil.create("div", "info legend");
-    var limits = linkdata.options.limits;
-    var colors = linkdata.options.colors;
-    var labels = [];
+  var div = L.DomUtil.create("div", "info legend");
+  var limits = dataArray.options.limits;
+  var colors = cj.options.colors;
+  var labels = [];
 
     // Add min & max
     var legendInfo = "<h1>Median Income</h1>" +
@@ -114,6 +182,5 @@ d3.csv(link, function(data) {
 
   // Adding legend to the map
   legend.addTo(myMap);
-
-});
+ 
 */
